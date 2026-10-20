@@ -421,7 +421,7 @@ function initAuth() {
           applyUserSession(newAdmin);
           showToast(`Login berhasil sebagai Administrator!`, "success");
         } else {
-          errorBanner.textContent = "Email atau kata sandi tidak cocok. Gunakan salah satu akun demo di bawah.";
+          errorBanner.textContent = "Email atau kata sandi yang Anda masukkan salah.";
           errorBanner.classList.remove("hidden");
         }
       }, 600);
