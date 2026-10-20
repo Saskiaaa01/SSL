@@ -1,0 +1,659 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SSLGuard — SSL Certificate Monitoring & WhatsApp Alert System</title>
+  <meta name="description" content="Dashboard Monitoring Sertifikat SSL/TLS & Notifikasi Peringatan Dini WhatsApp untuk Domain Layanan Publik KOMINFO">
+  
+  <!-- Google Fonts: Inter & Outfit & JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Outfit:wght@500;600;700;800&display=swap" rel="stylesheet">
+  
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- Background Ambient Glows -->
+  <div class="ambient-glow glow-cyan"></div>
+  <div class="ambient-glow glow-indigo"></div>
+
+  <!-- Main App Layout -->
+  <div class="app-layout">
+    
+    <!-- Sidebar Navigation -->
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <div class="brand-logo">
+          <div class="logo-shield">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+              <path d="m9 12 2 2 4-4"/>
+            </svg>
+          </div>
+          <div class="brand-text">
+            <span class="brand-title">SSLGuard</span>
+            <span class="brand-subtitle">KOMINFO MONITORING</span>
+          </div>
+        </div>
+      </div>
+
+      <nav class="sidebar-nav">
+        <div class="nav-section-label">MENU UTAMA</div>
+        <button class="nav-item active" data-view="dashboard" id="nav-dashboard">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect width="7" height="9" x="3" y="3" rx="1"/>
+            <rect width="7" height="5" x="14" y="3" rx="1"/>
+            <rect width="7" height="9" x="14" y="12" rx="1"/>
+            <rect width="7" height="5" x="3" y="16" rx="1"/>
+          </svg>
+          <span>Dashboard</span>
+        </button>
+
+        <button class="nav-item" data-view="websites" id="nav-websites">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"/>
+            <path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/>
+            <path d="M2 12h20"/>
+          </svg>
+          <span>Kelola Website</span>
+          <span class="badge-count" id="sidebar-domain-count">8</span>
+        </button>
+
+        <button class="nav-item" data-view="notifications" id="nav-notifications">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/>
+          </svg>
+          <span>Log WhatsApp</span>
+          <span class="badge-dot pulse-amber"></span>
+        </button>
+
+        <div class="nav-section-label">ADMINISTRASI</div>
+        <button class="nav-item" data-view="users" id="nav-users">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/>
+            <circle cx="9" cy="7" r="4"/>
+            <path d="M22 21v-2a4 4 0 0 0-3-3.87"/>
+            <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+          </svg>
+          <span>Pengguna & Role</span>
+        </button>
+      </nav>
+
+      <!-- Sidebar Footer Status -->
+      <div class="sidebar-footer">
+        <div class="gateway-card">
+          <div class="gateway-header">
+            <span class="status-indicator online"></span>
+            <span class="gateway-title">WhatsApp Cloud API</span>
+          </div>
+          <div class="gateway-body">
+            <p>Meta Platform: <strong>Aktif</strong></p>
+            <p>Scheduler: <strong>07:00 WIB (Daily)</strong></p>
+          </div>
+          <button class="btn-xs btn-outline" id="btn-test-wa-modal">Tes Kirim WA</button>
+        </div>
+
+        <div class="user-profile">
+          <div class="avatar">AD</div>
+          <div class="user-meta">
+            <span class="user-name">Admin KOMINFO</span>
+            <span class="user-role">Super Administrator</span>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Main Content Area -->
+    <main class="main-content">
+      
+      <!-- Topbar Header -->
+      <header class="topbar">
+        <div class="topbar-left">
+          <h1 class="page-title" id="page-title">Executive Dashboard</h1>
+          <p class="page-subtitle" id="page-subtitle">Ringkasan status inspeksi SSL/TLS seluruh domain instansi binaan KOMINFO</p>
+        </div>
+
+        <div class="topbar-right">
+          <!-- Live Time Display -->
+          <div class="time-pill">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            <span id="live-time">Sel, 20 Okt 2026 - 12:45 WIB</span>
+          </div>
+
+          <button class="btn btn-secondary" id="btn-run-all-check">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
+            <span>Scan Semua Domain</span>
+          </button>
+
+          <button class="btn btn-primary" id="btn-open-add-modal">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            <span>Tambah Domain</span>
+          </button>
+        </div>
+      </header>
+
+      <!-- VIEW 1: DASHBOARD -->
+      <section class="view-container active" id="view-dashboard">
+        
+        <!-- Metrics Stat Grid -->
+        <div class="metrics-grid">
+          
+          <div class="stat-card" id="card-total">
+            <div class="stat-icon icon-blue">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+            </div>
+            <div class="stat-data">
+              <span class="stat-label">Total Domain Terpantau</span>
+              <div class="stat-value" id="stat-total-domains">8</div>
+              <span class="stat-sub">Semua unit kerja & OPD</span>
+            </div>
+          </div>
+
+          <div class="stat-card" id="card-valid">
+            <div class="stat-icon icon-green">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+            </div>
+            <div class="stat-data">
+              <span class="stat-label">Sertifikat Valid & Aman</span>
+              <div class="stat-value text-green" id="stat-valid-domains">4</div>
+              <span class="stat-sub">Sisa masa aktif > 30 hari</span>
+            </div>
+          </div>
+
+          <div class="stat-card" id="card-warning">
+            <div class="stat-icon icon-amber">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+            </div>
+            <div class="stat-data">
+              <span class="stat-label">Perlu Perhatian (H-30 / 14)</span>
+              <div class="stat-value text-amber" id="stat-warning-domains">2</div>
+              <span class="stat-sub">Tahap peringatan awal & lanjut</span>
+            </div>
+          </div>
+
+          <div class="stat-card" id="card-critical">
+            <div class="stat-icon icon-red">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+            </div>
+            <div class="stat-data">
+              <span class="stat-label">Kritis & Kedaluwarsa</span>
+              <div class="stat-value text-red" id="stat-critical-domains">2</div>
+              <span class="stat-sub">H-7, Expired & Gagal Jaringan</span>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Dashboard Two-Column Breakdown -->
+        <div class="dashboard-grid-2">
+          
+          <!-- Urgent Action Required List -->
+          <div class="panel">
+            <div class="panel-header">
+              <div class="panel-title-group">
+                <div class="badge-pulse-red"></div>
+                <h3>Domain Membutuhkan Tindakan Segera</h3>
+              </div>
+              <button class="btn-text" id="btn-view-all-websites">Lihat Semua →</button>
+            </div>
+            <div class="panel-body">
+              <div class="urgent-list" id="urgent-domains-container">
+                <!-- Injected via JavaScript -->
+              </div>
+            </div>
+          </div>
+
+          <!-- Alert Threshold Rules & System Health -->
+          <div class="panel">
+            <div class="panel-header">
+              <div class="panel-title-group">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#06B6D4" stroke-width="2"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="m9 12 2 2 4-4"/></svg>
+                <h3>Mekanisme Ambang Notifikasi WhatsApp</h3>
+              </div>
+            </div>
+            <div class="panel-body">
+              <div class="rule-cards">
+                
+                <div class="rule-item">
+                  <div class="rule-badge badge-h30">H-30</div>
+                  <div class="rule-content">
+                    <h4>Peringatan Awal (Early Alert)</h4>
+                    <p>Masa berlaku tersisa 15 - 30 hari. Pesan dikirim 1x ke Admin & Owner OPD untuk mulai menyiapkan anggaran/proses perpanjangan.</p>
+                  </div>
+                </div>
+
+                <div class="rule-item">
+                  <div class="rule-badge badge-h14">H-14</div>
+                  <div class="rule-content">
+                    <h4>Peringatan Lanjutan (Follow-up)</h4>
+                    <p>Masa berlaku tersisa 8 - 14 hari. Mengingatkan pengelola teknis untuk segera melakukan instalasi sertifikat baru.</p>
+                  </div>
+                </div>
+
+                <div class="rule-item">
+                  <div class="rule-badge badge-h7">H-7</div>
+                  <div class="rule-content">
+                    <h4>Peringatan Kritis (Urgent Priority)</h4>
+                    <p>Masa berlaku tersisa ≤ 7 hari. Peringatan darurat tingkat tinggi untuk mencegah situs diblokir browser.</p>
+                  </div>
+                </div>
+
+                <div class="idempotency-box">
+                  <div class="idempotency-icon">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                  </div>
+                  <div class="idempotency-text">
+                    <strong>Fitur Anti-Spam (Deduplikasi):</strong> Sistem menjamin hanya tepat 1 pesan per ambang yang dikirim untuk sidik jari sertifikat yang sama.
+                  </div>
+                </div>
+
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+      </section>
+
+      <!-- VIEW 2: KELOLA WEBSITE -->
+      <section class="view-container" id="view-websites">
+        
+        <div class="table-toolbar">
+          <div class="search-box">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <input type="text" id="input-search-domain" placeholder="Cari nama domain (contoh: dinas.go.id)...">
+          </div>
+
+          <div class="filter-group">
+            <select id="filter-status" class="custom-select">
+              <option value="ALL">Semua Status</option>
+              <option value="VALID">Status: Valid (>30 Hari)</option>
+              <option value="WARNING_30">Status: H-30 (15-30 Hari)</option>
+              <option value="WARNING_14">Status: H-14 (8-14 Hari)</option>
+              <option value="CRITICAL_7">Status: Kritis H-7 (≤ 7 Hari)</option>
+              <option value="EXPIRED">Status: Kedaluwarsa</option>
+              <option value="FAILED">Status: Gagal Jaringan</option>
+            </select>
+
+            <select id="filter-owner" class="custom-select">
+              <option value="ALL">Semua Pemilik (OPD)</option>
+              <option value="Diskominfo">Diskominfo</option>
+              <option value="Bagian Hukum">Bagian Hukum</option>
+              <option value="BKPSDM">BKPSDM</option>
+              <option value="Dinas Kesehatan">Dinas Kesehatan</option>
+              <option value="Dispendukcapil">Dispendukcapil</option>
+              <option value="Kecamatan Kota">Kecamatan Kota</option>
+            </select>
+
+            <button class="btn btn-outline" id="btn-export-csv" title="Unduh hasil monitoring ke berkas CSV">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              <span>Export CSV</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="panel no-padding">
+          <div class="table-responsive">
+            <table class="data-table" id="table-websites">
+              <thead>
+                <tr>
+                  <th>Domain & Port</th>
+                  <th>Pemilik (Unit / OPD)</th>
+                  <th>Sisa Masa Berlaku</th>
+                  <th>Status Sertifikat</th>
+                  <th>Penerbit (CA)</th>
+                  <th>Terakhir Diperiksa</th>
+                  <th class="text-right">Aksi</th>
+                </tr>
+              </thead>
+              <tbody id="tbody-websites">
+                <!-- Injected via JavaScript -->
+              </tbody>
+            </table>
+          </div>
+          <div class="table-footer">
+            <span class="table-info" id="table-info-text">Menampilkan 8 dari 8 domain</span>
+            <div class="table-pagination">
+              <button class="btn-page" disabled>Sebelumnya</button>
+              <button class="btn-page active">1</button>
+              <button class="btn-page" disabled>Berikutnya</button>
+            </div>
+          </div>
+        </div>
+
+      </section>
+
+      <!-- VIEW 3: LOG NOTIFIKASI WHATSAPP -->
+      <section class="view-container" id="view-notifications">
+        
+        <div class="alert-summary-bar">
+          <div class="summary-item">
+            <span class="label">Total Notifikasi Terkirim:</span>
+            <strong class="value" id="wa-total-sent">12 Pesan</strong>
+          </div>
+          <div class="summary-item">
+            <span class="label">Peringatan H-30:</span>
+            <strong class="value text-amber">6 Pesan</strong>
+          </div>
+          <div class="summary-item">
+            <span class="label">Peringatan H-14:</span>
+            <strong class="value text-amber">4 Pesan</strong>
+          </div>
+          <div class="summary-item">
+            <span class="label">Peringatan Kritis H-7:</span>
+            <strong class="value text-red">2 Pesan</strong>
+          </div>
+          <div class="summary-item right">
+            <button class="btn btn-primary btn-sm" id="btn-trigger-wa-test">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+              Simulasi Broadcast WhatsApp
+            </button>
+          </div>
+        </div>
+
+        <div class="panel no-padding">
+          <div class="panel-header" style="padding: 16px 20px;">
+            <h3>Audit Log Pengiriman Notifikasi WhatsApp</h3>
+            <span class="text-muted text-xs">Mendukung callback webhook delivered & read status</span>
+          </div>
+          <div class="table-responsive">
+            <table class="data-table" id="table-notifications">
+              <thead>
+                <tr>
+                  <th>Waktu Pengiriman</th>
+                  <th>Domain Target</th>
+                  <th>Penerima & WhatsApp</th>
+                  <th>Ambang Peringatan</th>
+                  <th>ID Pesan Provider</th>
+                  <th>Status Pengiriman</th>
+                  <th class="text-right">Payload</th>
+                </tr>
+              </thead>
+              <tbody id="tbody-notifications">
+                <!-- Injected via JavaScript -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </section>
+
+      <!-- VIEW 4: PENGGUNA & ROLE (ADMIN) -->
+      <section class="view-container" id="view-users">
+        
+        <div class="panel no-padding">
+          <div class="panel-header" style="padding: 18px 20px;">
+            <div>
+              <h3>Manajemen Pengguna & Penanggung Jawab Domain</h3>
+              <p class="panel-subtitle">Daftar pengguna dengan nomor WhatsApp resmi penerima notifikasi kedaluwarsa SSL</p>
+            </div>
+            <button class="btn btn-primary btn-sm" id="btn-add-user-modal">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              Tambah Pengguna Baru
+            </button>
+          </div>
+
+          <div class="table-responsive">
+            <table class="data-table" id="table-users">
+              <thead>
+                <tr>
+                  <th>Nama Lengkap</th>
+                  <th>Email Login</th>
+                  <th>Nomor WhatsApp (E.164)</th>
+                  <th>Peran (Role)</th>
+                  <th>Domain Dikelola</th>
+                  <th>Status Akun</th>
+                  <th class="text-right">Aksi</th>
+                </tr>
+              </thead>
+              <tbody id="tbody-users">
+                <!-- Injected via JavaScript -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </section>
+
+    </main>
+
+  </div>
+
+  <!-- MODAL: TAMBAH DOMAIN BARU (DENGAN PROTEKSI SSRF) -->
+  <div class="modal-backdrop" id="modal-add-domain">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <div class="modal-title-wrap">
+          <div class="modal-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></svg>
+          </div>
+          <div>
+            <h3>Tambah Domain Monitoring</h3>
+            <p>Daftarkan website untuk inspeksi SSL/TLS otomatis harian</p>
+          </div>
+        </div>
+        <button class="btn-close" id="btn-close-modal-add">&times;</button>
+      </div>
+
+      <form id="form-add-domain">
+        <div class="modal-body">
+          
+          <div class="form-group">
+            <label for="modal-input-domain">Nama Domain / FQDN <span class="required">*</span></label>
+            <div class="input-with-prefix">
+              <span class="prefix">https://</span>
+              <input type="text" id="modal-input-domain" placeholder="layanan.kotakab.go.id" required autocomplete="off">
+            </div>
+            <span class="field-hint">Masukkan nama domain tanpa <code>http://</code> atau path folder.</span>
+          </div>
+
+          <div class="form-row-2">
+            <div class="form-group">
+              <label for="modal-input-port">Port TLS <span class="required">*</span></label>
+              <input type="number" id="modal-input-port" value="443" min="1" max="65535" required>
+            </div>
+
+            <div class="form-group">
+              <label for="modal-select-owner">Pemilik Website (Owner) <span class="required">*</span></label>
+              <select id="modal-select-owner" class="custom-select" required>
+                <option value="Diskominfo">Diskominfo</option>
+                <option value="Bagian Hukum">Bagian Hukum</option>
+                <option value="BKPSDM">BKPSDM</option>
+                <option value="Dinas Kesehatan">Dinas Kesehatan</option>
+                <option value="Dispendukcapil">Dispendukcapil</option>
+                <option value="Kecamatan Kota">Kecamatan Kota</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="checkbox-label">
+              <input type="checkbox" id="modal-check-active" checked>
+              <span>Aktifkan penjadwalan pemantauan harian otomatis (07:00 WIB)</span>
+            </label>
+          </div>
+
+          <!-- SSRF Protection Notice Box -->
+          <div class="security-notice">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            <div>
+              <strong>Proteksi SSRF Aktif:</strong> Sistem secara otomatis memblokir hostname <code>localhost</code>, IP loopback <code>127.0.0.1</code>, dan IP privat lokal intranet.
+            </div>
+          </div>
+
+          <div id="modal-add-error" class="error-banner hidden"></div>
+
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline" id="btn-cancel-modal-add">Batal</button>
+          <button type="submit" class="btn btn-primary" id="btn-submit-add-domain">
+            <span class="btn-text">Simpan & Periksa SSL Sekarang</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: DETAIL SERTIFIKAT X509 LENGKAP -->
+  <div class="modal-backdrop" id="modal-cert-detail">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-header">
+        <div class="modal-title-wrap">
+          <div class="modal-icon icon-cyan">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/></svg>
+          </div>
+          <div>
+            <h3 id="detail-modal-domain">portal.dinas.go.id</h3>
+            <p>Spesifikasi Kriptografi & Metadata Sertifikat x509 Publik</p>
+          </div>
+        </div>
+        <button class="btn-close" id="btn-close-modal-detail">&times;</button>
+      </div>
+
+      <div class="modal-body">
+        
+        <!-- Top Status Banner -->
+        <div class="cert-status-banner" id="detail-status-banner">
+          <div class="banner-badge" id="detail-badge-status">VALID</div>
+          <div class="banner-info">
+            <h4 id="detail-days-text">24 Hari Tersisa</h4>
+            <p id="detail-validity-dates">Berlaku: 16 Agu 2026 — 14 Nov 2026 (UTC)</p>
+          </div>
+        </div>
+
+        <!-- Certificate Fields Grid -->
+        <div class="cert-specs-grid">
+          
+          <div class="spec-card">
+            <span class="spec-label">Common Name (CN)</span>
+            <span class="spec-value code-font" id="detail-cn">*.kotakab.go.id</span>
+          </div>
+
+          <div class="spec-card">
+            <span class="spec-label">Penerbit (Issuer CA)</span>
+            <span class="spec-value" id="detail-issuer">Let's Encrypt Authority R3</span>
+          </div>
+
+          <div class="spec-card">
+            <span class="spec-label">Kecocokan Hostname (SNI)</span>
+            <span class="spec-value text-green" id="detail-hostname-match">✓ Cocok (Valid Match)</span>
+          </div>
+
+          <div class="spec-card">
+            <span class="spec-label">Validasi Rantai (Chain Valid)</span>
+            <span class="spec-value text-green" id="detail-chain">✓ Terverifikasi Penuh</span>
+          </div>
+
+          <div class="spec-card full-width">
+            <span class="spec-label">Subject Alternative Names (SANs)</span>
+            <span class="spec-value code-font text-wrap" id="detail-sans">portal.dinas.go.id, *.kotakab.go.id, kotakab.go.id</span>
+          </div>
+
+          <div class="spec-card full-width">
+            <span class="spec-label">SHA-256 Fingerprint (Kunci Idempotensi Anti-Spam)</span>
+            <span class="spec-value code-font text-wrap" id="detail-fingerprint">8C:64:1D:4B:92:07:95:EA:3A:41:8F:D2:C3:48:9A:F0:22:15:37:EB</span>
+          </div>
+
+          <div class="spec-card">
+            <span class="spec-label">Algoritma & Panjang Kunci</span>
+            <span class="spec-value" id="detail-key-info">RSA 2048 bit (SHA256withRSA)</span>
+          </div>
+
+          <div class="spec-card">
+            <span class="spec-label">Nomor Seri Sertifikat</span>
+            <span class="spec-value code-font text-xs" id="detail-serial">04:3a:9e:12:87:6b:15:c2</span>
+          </div>
+
+        </div>
+
+        <div class="section-divider"></div>
+        <h4>Riwayat Pemeriksaan Terakhir</h4>
+        <div class="table-responsive" style="margin-top: 10px;">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Waktu Pemeriksaan</th>
+                <th>Sisa Hari</th>
+                <th>Status</th>
+                <th>Dijalankan Oleh</th>
+              </tr>
+            </thead>
+            <tbody id="detail-history-tbody">
+              <!-- Injected dynamically -->
+            </tbody>
+          </table>
+        </div>
+
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline" id="btn-close-detail-modal">Tutup</button>
+        <button type="button" class="btn btn-primary" id="btn-recheck-current">Periksa Ulang Sekarang</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: SIMULASI PESAN WHATSAPP TEMPLATE -->
+  <div class="modal-backdrop" id="modal-wa-preview">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <div class="modal-title-wrap">
+          <div class="modal-icon icon-green">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+          </div>
+          <div>
+            <h3>Pratinjau Pesan WhatsApp API</h3>
+            <p>Format Template Resmi: <code>SSL_EXPIRY_ALERT</code></p>
+          </div>
+        </div>
+        <button class="btn-close" id="btn-close-modal-wa">&times;</button>
+      </div>
+
+      <div class="modal-body">
+        
+        <!-- WhatsApp Chat Bubble Mockup -->
+        <div class="wa-chat-container">
+          <div class="wa-chat-header">
+            <div class="wa-avatar">🛡️</div>
+            <div>
+              <div class="wa-name">SSLGuard KOMINFO Bot ✓</div>
+              <div class="wa-status">Akun Bisnis Resmi Meta</div>
+            </div>
+          </div>
+
+          <div class="wa-bubble">
+            <p class="wa-header-text">⚠️ <strong>PERINGATAN SSL WEBSITE</strong></p>
+            <p>Halo <span class="wa-tag" id="wa-preview-user">Budi Santoso</span>,</p>
+            <p>Sertifikat SSL website berikut akan segera kedaluwarsa.</p>
+            <div class="wa-details-box">
+              <p>🌐 <strong>Domain:</strong> <span id="wa-preview-domain">portal.dinas.go.id</span></p>
+              <p>📊 <strong>Status:</strong> <span id="wa-preview-status">PERINGATAN H-7</span></p>
+              <p>⏳ <strong>Sisa masa berlaku:</strong> <span id="wa-preview-days">7</span> hari</p>
+              <p>📅 <strong>Tanggal kedaluwarsa:</strong> <span id="wa-preview-exp">27 Oktober 2026</span></p>
+            </div>
+            <p>Mohon segera lakukan pemeriksaan dan perpanjangan sertifikat apabila diperlukan.</p>
+            <div class="wa-footer-text">
+              <span>🛡️ SSLGuard Monitoring System</span>
+              <span class="wa-time">07:00 ✓✓</span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline" id="btn-close-wa-preview">Tutup</button>
+        <button type="button" class="btn btn-primary" id="btn-simulate-send-wa">Simulasikan Kirim WhatsApp</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification Container -->
+  <div class="toast-container" id="toast-container"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>
