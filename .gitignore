@@ -1,0 +1,21 @@
+# Temporary Office Lock Files
+~$*.docx
+~$*.xlsx
+~$*.pptx
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.env
+.venv/
+env/
+venv/
+
+# OS Specific
+Thumbs.db
+.DS_Store
+
+# IDE & Editors
+.vscode/
+.idea/
