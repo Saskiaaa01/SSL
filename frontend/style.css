@@ -1445,8 +1445,8 @@ body {
 }
 
 .auth-logo-shield {
-  width: 54px;
-  height: 54px;
+  width: 56px;
+  height: 56px;
   background: linear-gradient(135deg, #3B82F6 0%, #1D4ED8 100%);
   border-radius: var(--radius-lg);
   display: inline-flex;
@@ -1459,10 +1459,11 @@ body {
 
 .auth-title {
   font-family: var(--font-heading);
-  font-size: 1.65rem;
+  font-size: 1.7rem;
   font-weight: 800;
-  letter-spacing: -0.02em;
+  letter-spacing: 0.04em;
   color: #FFFFFF;
+  margin-bottom: 4px;
 }
 
 .auth-badge {
