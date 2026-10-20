@@ -396,17 +396,23 @@ function initAuth() {
       errorBanner.classList.add("hidden");
       const btnSubmit = document.getElementById("btn-submit-login");
       btnSubmit.disabled = true;
-      btnSubmit.innerHTML = `<span>Memverifikasi kredensial...</span>`;
+      btnSubmit.innerHTML = `<span>Logging in...</span>`;
 
       setTimeout(() => {
         btnSubmit.disabled = false;
-        btnSubmit.innerHTML = `<span class="btn-label-white">Masuk ke Dashboard</span>`;
+        btnSubmit.innerHTML = `Login`;
 
-        // Check against demo accounts or any valid test input
-        if (DEMO_USERS[email]) {
-          const user = DEMO_USERS[email];
-          applyUserSession(user);
-          showToast(`Selamat datang kembali, ${user.name}!`, "success");
+        // Check against demo accounts (email atau username pendek)
+        let matchedUser = DEMO_USERS[email];
+        if (!matchedUser) {
+          if (email === "admin") matchedUser = DEMO_USERS["admin@kominfo.go.id"];
+          else if (email === "budi") matchedUser = DEMO_USERS["budi@dinas.go.id"];
+          else if (email === "siti") matchedUser = DEMO_USERS["siti@hukum.kota.go.id"];
+        }
+
+        if (matchedUser) {
+          applyUserSession(matchedUser);
+          showToast(`Selamat datang kembali, ${matchedUser.name}!`, "success");
         } else if (email.endsWith("@kominfo.go.id")) {
           // Fallback auto-grant admin for kominfo.go.id
           const newAdmin = {
@@ -421,10 +427,18 @@ function initAuth() {
           applyUserSession(newAdmin);
           showToast(`Login berhasil sebagai Administrator!`, "success");
         } else {
-          errorBanner.textContent = "Email atau kata sandi yang Anda masukkan salah.";
+          errorBanner.textContent = "Username / email atau kata sandi tidak cocok.";
           errorBanner.classList.remove("hidden");
         }
-      }, 600);
+      }, 500);
+    });
+  }
+
+  // Register Link Handler
+  const linkRegister = document.getElementById("link-register");
+  if (linkRegister) {
+    linkRegister.addEventListener("click", () => {
+      showToast("Pendaftaran akun pengguna baru dikelola secara terpusat oleh Administrator KOMINFO.", "info");
     });
   }
 
