@@ -400,7 +400,7 @@ function initAuth() {
 
       setTimeout(() => {
         btnSubmit.disabled = false;
-        btnSubmit.innerHTML = `<span class="btn-text">Masuk ke Dashboard</span>`;
+        btnSubmit.innerHTML = `<span class="btn-label-white">Masuk ke Dashboard</span>`;
 
         // Check against demo accounts or any valid test input
         if (DEMO_USERS[email]) {
