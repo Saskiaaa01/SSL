@@ -247,18 +247,57 @@ let users = [
 ];
 
 // ============================================================================
+// AUTHENTICATION & USER SESSION STATE
+// ============================================================================
+const DEMO_USERS = {
+  "admin@kominfo.go.id": {
+    id: "u1",
+    name: "Admin KOMINFO",
+    email: "admin@kominfo.go.id",
+    role: "admin",
+    roleLabel: "Super Administrator",
+    avatar: "AD",
+    department: null // akses seluruh domain
+  },
+  "budi@dinas.go.id": {
+    id: "u2",
+    name: "Budi Santoso",
+    email: "budi@dinas.go.id",
+    role: "owner",
+    roleLabel: "Owner (Diskominfo)",
+    avatar: "BS",
+    department: "Diskominfo"
+  },
+  "siti@hukum.kota.go.id": {
+    id: "u3",
+    name: "Siti Rahma",
+    email: "siti@hukum.kota.go.id",
+    role: "owner",
+    roleLabel: "Owner (Bagian Hukum)",
+    avatar: "SR",
+    department: "Bagian Hukum"
+  }
+};
+
+let currentUser = JSON.parse(localStorage.getItem("sslguard_user")) || null;
+
+// ============================================================================
 // INITIALIZATION & EVENT LISTENERS
 // ============================================================================
 document.addEventListener("DOMContentLoaded", () => {
   initLiveClock();
+  initAuth();
   initNavigation();
-  renderDashboard();
-  renderWebsitesTable();
-  renderNotificationsTable();
-  renderUsersTable();
   initModals();
   initFilters();
+
+  if (currentUser) {
+    applyUserSession(currentUser);
+  } else {
+    showLoginScreen();
+  }
 });
+
 
 // ============================================================================
 // LIVE CLOCK
@@ -282,6 +321,147 @@ function initLiveClock() {
   updateTime();
   setInterval(updateTime, 1000);
 }
+
+// ============================================================================
+// AUTHENTICATION CONTROLLER (LOGIN, DEMO & LOGOUT)
+// ============================================================================
+function showLoginScreen() {
+  document.getElementById("auth-wrapper").classList.remove("hidden");
+  document.getElementById("app-layout").style.display = "none";
+}
+
+function applyUserSession(user) {
+  currentUser = user;
+  localStorage.setItem("sslguard_user", JSON.stringify(user));
+
+  document.getElementById("auth-wrapper").classList.add("hidden");
+  document.getElementById("app-layout").style.display = "flex";
+
+  // Update Sidebar Profile
+  document.getElementById("sidebar-avatar").textContent = user.avatar || "U";
+  document.getElementById("sidebar-user-name").textContent = user.name;
+  document.getElementById("sidebar-user-role").textContent = user.roleLabel;
+
+  // Role-Based UI Elements Visibility (RBAC)
+  const adminLabel = document.getElementById("section-admin-label");
+  const navUsers = document.getElementById("nav-users");
+
+  if (user.role === "admin") {
+    if (adminLabel) adminLabel.style.display = "block";
+    if (navUsers) navUsers.style.display = "flex";
+  } else {
+    // Owner role: Sembunyikan menu Pengguna & Role
+    if (adminLabel) adminLabel.style.display = "none";
+    if (navUsers) navUsers.style.display = "none";
+  }
+
+  // Render components according to role
+  renderDashboard();
+  renderWebsitesTable();
+  renderNotificationsTable();
+  renderUsersTable();
+}
+
+function initAuth() {
+  const formLogin = document.getElementById("form-login");
+  const inputEmail = document.getElementById("login-email");
+  const inputPassword = document.getElementById("login-password");
+  const errorBanner = document.getElementById("login-error-banner");
+  const btnTogglePw = document.getElementById("btn-toggle-pw");
+  const btnLogout = document.getElementById("btn-logout");
+  const btnForgot = document.getElementById("btn-forgot-password");
+
+  // Toggle Password Visibility
+  if (btnTogglePw) {
+    btnTogglePw.addEventListener("click", () => {
+      const type = inputPassword.getAttribute("type") === "password" ? "text" : "password";
+      inputPassword.setAttribute("type", type);
+    });
+  }
+
+  // Forgot Password Prompt
+  if (btnForgot) {
+    btnForgot.addEventListener("click", () => {
+      showToast("Silakan hubungi Administrator KOMINFO di ruang NOC untuk reset kata sandi.", "info");
+    });
+  }
+
+  // Login Form Submission
+  if (formLogin) {
+    formLogin.addEventListener("submit", (e) => {
+      e.preventDefault();
+      const email = inputEmail.value.trim().toLowerCase();
+      const password = inputPassword.value;
+
+      errorBanner.classList.add("hidden");
+      const btnSubmit = document.getElementById("btn-submit-login");
+      btnSubmit.disabled = true;
+      btnSubmit.innerHTML = `<span>Memverifikasi kredensial...</span>`;
+
+      setTimeout(() => {
+        btnSubmit.disabled = false;
+        btnSubmit.innerHTML = `<span class="btn-text">Masuk ke Dashboard</span>`;
+
+        // Check against demo accounts or any valid test input
+        if (DEMO_USERS[email]) {
+          const user = DEMO_USERS[email];
+          applyUserSession(user);
+          showToast(`Selamat datang kembali, ${user.name}!`, "success");
+        } else if (email.endsWith("@kominfo.go.id")) {
+          // Fallback auto-grant admin for kominfo.go.id
+          const newAdmin = {
+            id: "u_custom",
+            name: email.split("@")[0].toUpperCase(),
+            email: email,
+            role: "admin",
+            roleLabel: "Administrator",
+            avatar: email.substring(0, 2).toUpperCase(),
+            department: null
+          };
+          applyUserSession(newAdmin);
+          showToast(`Login berhasil sebagai Administrator!`, "success");
+        } else {
+          errorBanner.textContent = "Email atau kata sandi tidak cocok. Gunakan salah satu akun demo di bawah.";
+          errorBanner.classList.remove("hidden");
+        }
+      }, 600);
+    });
+  }
+
+  // Logout Button Handler
+  if (btnLogout) {
+    btnLogout.addEventListener("click", () => {
+      if (confirm("Apakah Anda yakin ingin keluar dari akun ini?")) {
+        localStorage.removeItem("sslguard_user");
+        currentUser = null;
+        showLoginScreen();
+        showToast("Anda telah berhasil keluar dari akun (Logout).", "info");
+      }
+    });
+  }
+}
+
+// Quick Demo Fill Helper (Global Function)
+window.fillDemoAccount = function(type) {
+  const inputEmail = document.getElementById("login-email");
+  const inputPassword = document.getElementById("login-password");
+  const errorBanner = document.getElementById("login-error-banner");
+  if (errorBanner) errorBanner.classList.add("hidden");
+
+  if (type === "admin") {
+    inputEmail.value = "admin@kominfo.go.id";
+    inputPassword.value = "Admin@2026";
+  } else if (type === "owner_diskominfo") {
+    inputEmail.value = "budi@dinas.go.id";
+    inputPassword.value = "Budi@2026";
+  } else if (type === "owner_hukum") {
+    inputEmail.value = "siti@hukum.kota.go.id";
+    inputPassword.value = "Siti@2026";
+  }
+
+  showToast(`Akun ${type} dipilih. Klik "Masuk ke Dashboard".`, "info");
+};
+
 
 // ============================================================================
 // VIEW NAVIGATION (TAB SWITCHING)
@@ -339,13 +519,24 @@ function initNavigation() {
 }
 
 // ============================================================================
+// ROLE-BASED ACCESS CONTROL HELPER (RBAC)
+// ============================================================================
+function getAccessibleWebsites() {
+  if (currentUser && currentUser.role === "owner" && currentUser.department) {
+    return websites.filter(w => w.owner === currentUser.department);
+  }
+  return websites;
+}
+
+// ============================================================================
 // DASHBOARD VIEW LOGIC
 // ============================================================================
 function renderDashboard() {
-  const total = websites.length;
-  const valid = websites.filter(w => w.status === "VALID").length;
-  const warning = websites.filter(w => w.status === "WARNING_30" || w.status === "WARNING_14").length;
-  const critical = websites.filter(w => w.status === "CRITICAL_7" || w.status === "EXPIRED" || w.status === "FAILED").length;
+  const accessible = getAccessibleWebsites();
+  const total = accessible.length;
+  const valid = accessible.filter(w => w.status === "VALID").length;
+  const warning = accessible.filter(w => w.status === "WARNING_30" || w.status === "WARNING_14").length;
+  const critical = accessible.filter(w => w.status === "CRITICAL_7" || w.status === "EXPIRED" || w.status === "FAILED").length;
 
   document.getElementById("stat-total-domains").textContent = total;
   document.getElementById("sidebar-domain-count").textContent = total;
@@ -357,13 +548,18 @@ function renderDashboard() {
   const urgentContainer = document.getElementById("urgent-domains-container");
   urgentContainer.innerHTML = "";
 
-  const urgentItems = websites
+  const urgentItems = accessible
     .filter(w => w.status === "CRITICAL_7" || w.status === "EXPIRED" || w.status === "WARNING_14" || w.status === "FAILED")
     .sort((a, b) => {
       const da = a.daysRemaining === null ? 999 : a.daysRemaining;
       const db = b.daysRemaining === null ? 999 : b.daysRemaining;
       return da - db;
     });
+
+  if (urgentItems.length === 0) {
+    urgentContainer.innerHTML = `<div style="text-align: center; color: var(--text-muted); padding: 20px;">Semua domain berada dalam kondisi aman (>30 hari).</div>`;
+    return;
+  }
 
   urgentItems.forEach(item => {
     const el = document.createElement("div");
@@ -403,11 +599,13 @@ function renderDashboard() {
 // ============================================================================
 // WEBSITES TABLE LOGIC
 // ============================================================================
-function renderWebsitesTable(dataToRender = websites) {
+function renderWebsitesTable(dataToRender = null) {
+  const accessible = getAccessibleWebsites();
+  const currentList = dataToRender !== null ? dataToRender : accessible;
   const tbody = document.getElementById("tbody-websites");
   tbody.innerHTML = "";
 
-  document.getElementById("table-info-text").textContent = `Menampilkan ${dataToRender.length} dari ${websites.length} domain`;
+  document.getElementById("table-info-text").textContent = `Menampilkan ${currentList.length} dari ${accessible.length} domain`;
 
   if (dataToRender.length === 0) {
     tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; padding: 30px; color: var(--text-muted);">Tidak ditemukan domain yang sesuai kriteria pencarian.</td></tr>`;
@@ -486,7 +684,8 @@ function initFilters() {
     const st = filterStatus.value;
     const ow = filterOwner.value;
 
-    const filtered = websites.filter(item => {
+    const baseList = getAccessibleWebsites();
+    const filtered = baseList.filter(item => {
       const matchSearch = item.domain.toLowerCase().includes(q) || item.owner.toLowerCase().includes(q);
       const matchStatus = (st === "ALL") || (item.status === st);
       const matchOwner = (ow === "ALL") || (item.owner === ow);
@@ -535,7 +734,7 @@ function scanAllDomains() {
   btn.disabled = true;
   btn.innerHTML = `<span>Memindai...</span>`;
 
-  showToast("Menjalankan tugas scheduler otomatis: menginspeksi 8 domain...", "info");
+  showToast("Menjalankan tugas scheduler otomatis: menginspeksi domain...", "info");
 
   setTimeout(() => {
     websites.forEach(w => {
@@ -549,15 +748,16 @@ function scanAllDomains() {
     showToast("Pemindaian massal selesai! Seluruh hasil pemeriksaan & log telah diperbarui.", "success");
     renderWebsitesTable();
     renderDashboard();
-  }, 2000);
+  }, 1800);
 }
 
 // ============================================================================
 // EXPORT CSV FEATURE (REAL GENERATION & DOWNLOAD)
 // ============================================================================
 function exportMonitoringToCSV() {
+  const accessible = getAccessibleWebsites();
   const headers = ["Domain", "Port", "Pemilik_OPD", "Sisa_Hari", "Status", "Penerbit_CA", "Tanggal_Mulai", "Tanggal_Kedaluwarsa", "Fingerprint_SHA256", "Terakhir_Diperiksa"];
-  const rows = websites.map(w => [
+  const rows = accessible.map(w => [
     w.domain,
     w.port,
     `"${w.owner}"`,
