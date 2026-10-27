@@ -196,6 +196,12 @@
         </div>
 
         <div class="topbar-right">
+          <!-- Live API Connection Status -->
+          <div class="time-pill api-status-pill" id="api-status-pill" title="Status koneksi ke backend engine FastAPI">
+            <span class="status-indicator online" id="api-status-dot"></span>
+            <span id="api-status-text">Backend Live</span>
+          </div>
+
           <!-- Live Time Display -->
           <div class="time-pill">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>

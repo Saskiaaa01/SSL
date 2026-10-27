@@ -8,9 +8,20 @@ __pycache__/
 *.py[cod]
 *$py.class
 *.env
+.env
+backend/.env
 .venv/
 env/
 venv/
+*.egg-info/
+dist/
+build/
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+sslguard.db
 
 # OS Specific
 Thumbs.db
@@ -19,3 +30,6 @@ Thumbs.db
 # IDE & Editors
 .vscode/
 .idea/
+
+# Logs
+*.log

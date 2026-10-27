@@ -1669,3 +1669,51 @@ body {
   }
 }
 
+/* ==========================================================================
+   Live API Status Pill Styles
+   ========================================================================== */
+.api-status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(16, 185, 129, 0.08);
+  border: 1px solid rgba(16, 185, 129, 0.25);
+  color: #34D399;
+  font-size: 0.8rem;
+  font-weight: 500;
+  padding: 6px 12px;
+  border-radius: 9999px;
+  box-shadow: 0 0 12px rgba(16, 185, 129, 0.15);
+  transition: all var(--trans-fast);
+}
+
+.api-status-pill.offline {
+  background: rgba(245, 158, 11, 0.08);
+  border-color: rgba(245, 158, 11, 0.25);
+  color: #FBBF24;
+  box-shadow: 0 0 12px rgba(245, 158, 11, 0.15);
+}
+
+.status-dot-pulse {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.status-dot-pulse.online {
+  background: #10B981;
+  box-shadow: 0 0 8px #10B981;
+  animation: pulse-green 2s infinite;
+}
+
+.status-dot-pulse.offline {
+  background: #F59E0B;
+  box-shadow: 0 0 8px #F59E0B;
+}
+
+@keyframes pulse-green {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(0.9); }
+}
+

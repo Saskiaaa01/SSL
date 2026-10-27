@@ -282,17 +282,177 @@ const DEMO_USERS = {
 let currentUser = JSON.parse(localStorage.getItem("sslguard_user")) || null;
 
 // ============================================================================
+// BACKEND REST API CLIENT & LIVE DATA SYNC
+// ============================================================================
+const API_BASE = window.location.origin.includes(":8000")
+  ? window.location.origin + "/api/v1"
+  : "http://localhost:8000/api/v1";
+
+let isBackendLive = false;
+let authToken = localStorage.getItem("sslguard_token") || null;
+
+async function checkBackendStatus() {
+  const pill = document.getElementById("api-status-pill");
+  const dot = document.getElementById("api-status-dot");
+  const text = document.getElementById("api-status-text");
+
+  try {
+    const healthUrl = API_BASE.replace("/api/v1", "") + "/health";
+    const res = await fetch(healthUrl, { signal: AbortSignal.timeout(2000) });
+    if (res.ok) {
+      isBackendLive = true;
+      if (pill) pill.className = "time-pill api-status-pill";
+      if (dot) dot.className = "status-indicator online";
+      if (text) text.textContent = "Backend Live (FastAPI)";
+      return true;
+    }
+  } catch (err) {
+    // offline or cors issue
+  }
+
+  isBackendLive = false;
+  if (pill) pill.className = "time-pill api-status-pill offline";
+  if (dot) dot.className = "status-indicator offline";
+  if (text) text.textContent = "Mode Simulasi";
+  return false;
+}
+
+async function apiFetch(endpoint, options = {}) {
+  const headers = {
+    "Content-Type": "application/json",
+    ...(options.headers || {})
+  };
+  if (authToken) {
+    headers["Authorization"] = `Bearer ${authToken}`;
+  }
+  return fetch(`${API_BASE}${endpoint}`, {
+    ...options,
+    headers
+  });
+}
+
+function formatRelativeTime(dateStr) {
+  if (!dateStr) return "Baru saja";
+  try {
+    const date = new Date(dateStr);
+    const now = new Date();
+    const diffSec = Math.floor((now - date) / 1000);
+    if (diffSec < 60) return "Baru saja";
+    if (diffSec < 3600) return `${Math.floor(diffSec / 60)} menit lalu`;
+    if (diffSec < 86400) return `${Math.floor(diffSec / 3600)} jam lalu`;
+    return `${Math.floor(diffSec / 86400)} hari lalu`;
+  } catch (e) {
+    return dateStr;
+  }
+}
+
+function mapApiWebsite(w) {
+  const latest = w.latest_check || {};
+  return {
+    id: w.id,
+    domain: w.domain,
+    port: w.port,
+    owner: w.department || w.owner_name,
+    owner_name: w.owner_name,
+    owner_wa: w.owner_wa,
+    department: w.department,
+    daysRemaining: latest.days_remaining !== undefined ? latest.days_remaining : null,
+    status: latest.status || "VALID",
+    issuer: latest.issuer || "Tidak Diketahui",
+    validFrom: latest.valid_from || "-",
+    expiresAt: latest.expires_at || "-",
+    lastChecked: latest.checked_at ? formatRelativeTime(latest.checked_at) : "Baru saja",
+    fingerprint: latest.fingerprint_sha256 || "-",
+    cn: latest.subject_cn || w.domain,
+    sans: latest.sans || w.domain,
+    serial: latest.serial_number || "-",
+    keyInfo: latest.key_info || "RSA 2048 bit (SHA256withRSA)",
+    chainValid: latest.chain_valid !== undefined ? latest.chain_valid : true,
+    hostnameMatch: latest.hostname_match !== undefined ? latest.hostname_match : true,
+    errorMessage: latest.error_message || null,
+    history: w.ssl_checks || []
+  };
+}
+
+async function syncWebsitesFromApi() {
+  if (!isBackendLive) return;
+  try {
+    const res = await apiFetch("/websites");
+    if (res.ok) {
+      const data = await res.json();
+      websites = data.map(mapApiWebsite);
+      renderWebsitesTable();
+      renderDashboard();
+    }
+  } catch (e) {
+    console.warn("Gagal mengambil data website dari API:", e);
+  }
+}
+
+async function syncNotificationsFromApi() {
+  if (!isBackendLive) return;
+  try {
+    const res = await apiFetch("/notifications/logs");
+    if (res.ok) {
+      const data = await res.json();
+      notificationLogs = data.map(l => ({
+        id: l.id,
+        time: formatRelativeTime(l.sent_at),
+        domain: l.domain,
+        recipient: l.recipient_name,
+        phone: l.recipient_wa,
+        threshold: l.threshold_label,
+        providerId: l.provider_message_id || "-",
+        status: l.status
+      }));
+      renderNotificationsTable();
+    }
+  } catch (e) {
+    console.warn("Gagal mengambil log notifikasi dari API:", e);
+  }
+}
+
+async function syncUsersFromApi() {
+  if (!isBackendLive) return;
+  try {
+    const res = await apiFetch("/users");
+    if (res.ok) {
+      const data = await res.json();
+      users = data.map(u => ({
+        id: u.id,
+        name: u.full_name,
+        email: u.email,
+        phone: u.phone_number || "-",
+        role: u.role === "SUPER_ADMIN" ? "Super Admin" : (u.role === "ADMIN" ? "Administrator" : `Owner (${u.department || 'OPD'})`),
+        domainsCount: u.domains_count || "0 Domain",
+        status: u.is_active ? "Aktif" : "Nonaktif"
+      }));
+      renderUsersTable();
+    }
+  } catch (e) {
+    console.warn("Gagal mengambil daftar pengguna dari API:", e);
+  }
+}
+
+// ============================================================================
 // INITIALIZATION & EVENT LISTENERS
 // ============================================================================
-document.addEventListener("DOMContentLoaded", () => {
+document.addEventListener("DOMContentLoaded", async () => {
   initLiveClock();
   initAuth();
   initNavigation();
   initModals();
   initFilters();
 
+  await checkBackendStatus();
+
   if (currentUser) {
     applyUserSession(currentUser);
+    if (isBackendLive) {
+      await syncWebsitesFromApi();
+      await syncNotificationsFromApi();
+      await syncUsersFromApi();
+    }
   } else {
     showLoginScreen();
   }
@@ -386,9 +546,9 @@ function initAuth() {
     });
   }
 
-  // Login Form Submission
+  // Login Form Submission (Live REST API + Fallback)
   if (formLogin) {
-    formLogin.addEventListener("submit", (e) => {
+    formLogin.addEventListener("submit", async (e) => {
       e.preventDefault();
       const email = inputEmail.value.trim().toLowerCase();
       const password = inputPassword.value;
@@ -396,13 +556,61 @@ function initAuth() {
       errorBanner.classList.add("hidden");
       const btnSubmit = document.getElementById("btn-submit-login");
       btnSubmit.disabled = true;
-      btnSubmit.innerHTML = `<span>Logging in...</span>`;
+      btnSubmit.innerHTML = `<span>Memverifikasi...</span>`;
 
+      // 1. Try Live Backend API if available
+      if (isBackendLive) {
+        try {
+          const res = await apiFetch("/auth/login", {
+            method: "POST",
+            body: JSON.stringify({ username: email, password })
+          });
+
+          if (res.ok) {
+            const data = await res.json();
+            authToken = data.access_token;
+            localStorage.setItem("sslguard_token", authToken);
+
+            const u = data.user;
+            const liveUser = {
+              id: u.id,
+              name: u.full_name,
+              email: u.email,
+              role: (u.role === "SUPER_ADMIN" || u.role === "ADMIN") ? "admin" : "owner",
+              roleLabel: u.role === "SUPER_ADMIN" ? "Super Administrator" : (u.role === "ADMIN" ? "Administrator" : `Owner (${u.department || 'OPD'})`),
+              avatar: u.full_name.substring(0, 2).toUpperCase(),
+              department: u.department
+            };
+
+            btnSubmit.disabled = false;
+            btnSubmit.innerHTML = `Login`;
+            applyUserSession(liveUser);
+            await syncWebsitesFromApi();
+            await syncNotificationsFromApi();
+            await syncUsersFromApi();
+            showToast(`Selamat datang kembali, ${liveUser.name}! (Live API)`, "success");
+            return;
+          } else {
+            const errData = await res.json().catch(() => ({}));
+            const errMsg = errData.detail || "Username / email atau kata sandi tidak cocok.";
+            if (!DEMO_USERS[email] && email !== "admin" && email !== "budi" && email !== "siti") {
+              btnSubmit.disabled = false;
+              btnSubmit.innerHTML = `Login`;
+              errorBanner.textContent = errMsg;
+              errorBanner.classList.remove("hidden");
+              return;
+            }
+          }
+        } catch (apiErr) {
+          console.warn("Backend login failed, attempting local fallback:", apiErr);
+        }
+      }
+
+      // 2. Local Fallback Mode
       setTimeout(() => {
         btnSubmit.disabled = false;
         btnSubmit.innerHTML = `Login`;
 
-        // Check against demo accounts (email atau username pendek)
         let matchedUser = DEMO_USERS[email];
         if (!matchedUser) {
           if (email === "admin") matchedUser = DEMO_USERS["admin@kominfo.go.id"];
@@ -412,9 +620,8 @@ function initAuth() {
 
         if (matchedUser) {
           applyUserSession(matchedUser);
-          showToast(`Selamat datang kembali, ${matchedUser.name}!`, "success");
+          showToast(`Selamat datang kembali, ${matchedUser.name}! (Simulasi)`, "success");
         } else if (email.endsWith("@kominfo.go.id")) {
-          // Fallback auto-grant admin for kominfo.go.id
           const newAdmin = {
             id: "u_custom",
             name: email.split("@")[0].toUpperCase(),
@@ -430,7 +637,7 @@ function initAuth() {
           errorBanner.textContent = "Username / email atau kata sandi tidak cocok.";
           errorBanner.classList.remove("hidden");
         }
-      }, 500);
+      }, 400);
     });
   }
 
@@ -447,6 +654,8 @@ function initAuth() {
     btnLogout.addEventListener("click", () => {
       if (confirm("Apakah Anda yakin ingin keluar dari akun ini?")) {
         localStorage.removeItem("sslguard_user");
+        localStorage.removeItem("sslguard_token");
+        authToken = null;
         currentUser = null;
         showLoginScreen();
         showToast("Anda telah berhasil keluar dari akun (Logout).", "info");
@@ -721,9 +930,9 @@ function initFilters() {
 }
 
 // ============================================================================
-// MANUAL CHECK SIMULATION
+// MANUAL CHECK (LIVE TLS HANDSHAKE + FALLBACK)
 // ============================================================================
-function triggerManualCheck(websiteId, btnEl) {
+async function triggerManualCheck(websiteId, btnEl) {
   const website = websites.find(w => w.id === websiteId);
   if (!website) return;
 
@@ -732,6 +941,38 @@ function triggerManualCheck(websiteId, btnEl) {
 
   showToast(`Melakukan TLS Handshake ke ${website.domain}:${website.port}...`, "info");
 
+  if (isBackendLive) {
+    try {
+      const res = await apiFetch(`/websites/${websiteId}/check`, { method: "POST" });
+      if (res.ok) {
+        const checkResult = await res.json();
+        website.status = checkResult.status;
+        website.daysRemaining = checkResult.days_remaining;
+        website.issuer = checkResult.issuer;
+        website.validFrom = checkResult.valid_from;
+        website.expiresAt = checkResult.expires_at;
+        website.fingerprint = checkResult.fingerprint_sha256;
+        website.serial = checkResult.serial_number;
+        website.keyInfo = checkResult.key_info;
+        website.sans = checkResult.sans;
+        website.lastChecked = "Baru saja";
+        website.chainValid = checkResult.chain_valid;
+        website.hostnameMatch = checkResult.hostname_match;
+        website.errorMessage = checkResult.error_message;
+
+        btnEl.classList.remove("spinning");
+        btnEl.disabled = false;
+        showToast(`Inspeksi TLS Live berhasil: ${website.domain} (${website.daysRemaining !== null ? website.daysRemaining + ' hari' : website.status}) [${checkResult.response_time_ms || 120}ms]`, "success");
+        renderWebsitesTable();
+        renderDashboard();
+        return;
+      }
+    } catch (err) {
+      console.warn("Live TLS handshake error, using local state:", err);
+    }
+  }
+
+  // Fallback mode
   setTimeout(() => {
     btnEl.classList.remove("spinning");
     btnEl.disabled = false;
@@ -740,15 +981,34 @@ function triggerManualCheck(websiteId, btnEl) {
     showToast(`Inspeksi berhasil: ${website.domain} (${website.daysRemaining !== null ? website.daysRemaining + ' hari tersisa' : 'Status: ' + website.status})`, "success");
     renderWebsitesTable();
     renderDashboard();
-  }, 1200);
+  }, 1000);
 }
 
-function scanAllDomains() {
+async function scanAllDomains() {
   const btn = document.getElementById("btn-run-all-check");
   btn.disabled = true;
   btn.innerHTML = `<span>Memindai...</span>`;
 
-  showToast("Menjalankan tugas scheduler otomatis: menginspeksi domain...", "info");
+  showToast("Menjalankan tugas scheduler: menginspeksi seluruh domain...", "info");
+
+  if (isBackendLive) {
+    try {
+      await apiFetch("/dashboard/scan-all", { method: "POST" });
+      setTimeout(async () => {
+        await syncWebsitesFromApi();
+        await syncNotificationsFromApi();
+        btn.disabled = false;
+        btn.innerHTML = `
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
+          <span>Scan Semua Domain</span>
+        `;
+        showToast("Pemindaian massal selesai! Seluruh hasil pemeriksaan & log telah diperbarui.", "success");
+      }, 2000);
+      return;
+    } catch (err) {
+      console.warn("Scan-all API error:", err);
+    }
+  }
 
   setTimeout(() => {
     websites.forEach(w => {
@@ -762,13 +1022,19 @@ function scanAllDomains() {
     showToast("Pemindaian massal selesai! Seluruh hasil pemeriksaan & log telah diperbarui.", "success");
     renderWebsitesTable();
     renderDashboard();
-  }, 1800);
+  }, 1500);
 }
 
 // ============================================================================
-// EXPORT CSV FEATURE (REAL GENERATION & DOWNLOAD)
+// EXPORT CSV FEATURE (SERVER-SIDE EXPORT + FALLBACK)
 // ============================================================================
 function exportMonitoringToCSV() {
+  if (isBackendLive) {
+    window.location.href = `${API_BASE}/reports/export`;
+    showToast("Mengunduh berkas laporan audit CSV resmi dari server backend...", "success");
+    return;
+  }
+
   const accessible = getAccessibleWebsites();
   const headers = ["Domain", "Port", "Pemilik_OPD", "Sisa_Hari", "Status", "Penerbit_CA", "Tanggal_Mulai", "Tanggal_Kedaluwarsa", "Fingerprint_SHA256", "Terakhir_Diperiksa"];
   const rows = accessible.map(w => [
@@ -784,7 +1050,7 @@ function exportMonitoringToCSV() {
     `"${w.lastChecked}"`
   ]);
 
-  const csvContent = "data:text/csv;charset=utf-8," 
+  const csvContent = "data:text/csv;charset=utf-8,\ufeff" 
     + [headers.join(","), ...rows.map(r => r.join(","))].join("\n");
 
   const encodedUri = encodeURI(csvContent);
@@ -823,17 +1089,16 @@ function initModals() {
   btnCloseAdd.addEventListener("click", closeAdd);
   btnCancelAdd.addEventListener("click", closeAdd);
 
-  // Form Submission with SSRF Check
-  formAdd.addEventListener("submit", (e) => {
+  // Form Submission with SSRF Check & API Integration
+  formAdd.addEventListener("submit", async (e) => {
     e.preventDefault();
     let rawDomain = document.getElementById("modal-input-domain").value.trim().toLowerCase();
     const port = parseInt(document.getElementById("modal-input-port").value, 10);
     const owner = document.getElementById("modal-select-owner").value;
 
-    // Bersihkan prefix jika ada
     rawDomain = rawDomain.replace(/^https?:\/\//, '').replace(/\/.*$/, '');
 
-    // 1. SSRF PROTECTION VALIDATION TEST
+    // SSRF PROTECTION VALIDATION TEST
     const restrictedHosts = [
       "localhost", 
       "127.0.0.1", 
@@ -857,7 +1122,39 @@ function initModals() {
       return;
     }
 
-    // Success flow
+    if (isBackendLive) {
+      try {
+        showToast(`Mendaftarkan domain & menginspeksi SSL: ${rawDomain}...`, "info");
+        const res = await apiFetch("/websites", {
+          method: "POST",
+          body: JSON.stringify({
+            domain: rawDomain,
+            port: port,
+            owner_name: owner,
+            owner_wa: "+6281234567890",
+            department: owner
+          })
+        });
+
+        if (res.ok) {
+          closeAdd();
+          await syncWebsitesFromApi();
+          showToast(`Domain ${rawDomain} berhasil didaftarkan dan diinspeksi via Live Backend!`, "success");
+          const newlyCreated = websites.find(w => w.domain === rawDomain);
+          if (newlyCreated) inspectWebsiteDetail(newlyCreated.id);
+          return;
+        } else {
+          const err = await res.json().catch(() => ({}));
+          errorBanner.textContent = err.detail || "Gagal mendaftarkan domain.";
+          errorBanner.classList.remove("hidden");
+          return;
+        }
+      } catch (apiErr) {
+        console.warn("Backend add domain failed, falling back to local:", apiErr);
+      }
+    }
+
+    // Success flow local fallback
     const newWebsite = {
       id: "w" + (websites.length + 1),
       domain: rawDomain,
@@ -896,11 +1193,37 @@ function initModals() {
   btnCloseDetail.addEventListener("click", closeDetail);
   btnCloseDetail2.addEventListener("click", closeDetail);
 
-  btnRecheckCurrent.addEventListener("click", () => {
+  btnRecheckCurrent.addEventListener("click", async () => {
     if (currentDetailWebsiteId) {
       const item = websites.find(w => w.id === currentDetailWebsiteId);
       if (item) {
         showToast(`Memperbarui sertifikat untuk ${item.domain}...`, "info");
+        if (isBackendLive) {
+          try {
+            const res = await apiFetch(`/websites/${currentDetailWebsiteId}/check`, { method: "POST" });
+            if (res.ok) {
+              const chk = await res.json();
+              item.status = chk.status;
+              item.daysRemaining = chk.days_remaining;
+              item.issuer = chk.issuer;
+              item.validFrom = chk.valid_from;
+              item.expiresAt = chk.expires_at;
+              item.lastChecked = "Baru saja";
+              item.fingerprint = chk.fingerprint_sha256;
+              item.serial = chk.serial_number;
+              item.keyInfo = chk.key_info;
+              item.sans = chk.sans;
+              showToast(`Sertifikat ${item.domain} berhasil diperiksa ulang (Live)!`, "success");
+              inspectWebsiteDetail(currentDetailWebsiteId);
+              renderWebsitesTable();
+              renderDashboard();
+              return;
+            }
+          } catch (e) {
+            console.warn("Recheck error:", e);
+          }
+        }
+
         setTimeout(() => {
           item.lastChecked = "Baru saja";
           showToast(`Sertifikat ${item.domain} berhasil diperiksa ulang!`, "success");
@@ -926,17 +1249,42 @@ function initModals() {
   btnTestModal.addEventListener("click", () => previewWAMessage("w1"));
   btnTriggerTest.addEventListener("click", () => previewWAMessage("w1"));
 
-  btnSimulateWA.addEventListener("click", () => {
+  btnSimulateWA.addEventListener("click", async () => {
     showToast("Mengirim request ke Meta WhatsApp Cloud API...", "info");
+    const activeDomain = websites[0] ? websites[0].domain : "portal.dinas.go.id";
+
+    if (isBackendLive) {
+      try {
+        const res = await apiFetch("/notifications/test", {
+          method: "POST",
+          body: JSON.stringify({
+            phone_number: "+6281234567890",
+            recipient_name: "Budi Santoso (Owner Diskominfo)",
+            domain: activeDomain,
+            days_remaining: 3,
+            threshold_label: "H-7 (Kritis)"
+          })
+        });
+
+        if (res.ok) {
+          closeWA();
+          await syncNotificationsFromApi();
+          showToast("Pesan WhatsApp resmi berhasil dikirim dan diverifikasi Meta Cloud API!", "success");
+          return;
+        }
+      } catch (e) {
+        console.warn("Test WA error:", e);
+      }
+    }
+
     setTimeout(() => {
       closeWA();
       showToast("Pesan WhatsApp resmi berhasil dikirim ke nomor Owner & Admin!", "success");
       
-      // Tambahkan ke log
       notificationLogs.unshift({
         id: "log" + (notificationLogs.length + 1),
         time: "Baru saja",
-        domain: "portal.dinas.go.id",
+        domain: activeDomain,
         recipient: "Budi Santoso (Owner Diskominfo)",
         phone: "+6281234567890",
         threshold: "H-7 (Kritis)",
